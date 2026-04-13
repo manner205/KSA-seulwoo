@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* 디자인 토큰 */
+:root {
+  --color-primary: #2563eb;
+  --color-primary-light: #3b82f6;
+  --color-accent: #8b5cf6;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* 상태 뱃지 색상 */
+.badge-planned { background: #e2e8f0; color: #475569; }
+.badge-preparing { background: #fef3c7; color: #92400e; }
+.badge-submitted { background: #dbeafe; color: #1e40af; }
+.badge-awaiting { background: #fae8ff; color: #86198f; }
+.badge-accepted { background: #d1fae5; color: #065f46; }
+.badge-not-selected { background: #fee2e2; color: #991b1b; }
+.badge-completed { background: #d1fae5; color: #065f46; }
