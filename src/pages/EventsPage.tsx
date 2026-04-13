@@ -3,21 +3,28 @@ import { useStore } from '@/hooks/useStore'
 import { useAuth } from '@/contexts/AuthContext'
 import DdayBadge from '@/components/DdayBadge'
 import FileAttachment from '@/components/FileAttachment'
+import LinkAdder from '@/components/LinkAdder'
 import type { ItemStatus, ScienceEvent, EventLink } from '@/types/database'
 import { STATUS_LABELS, formatDate, formatDateTime, generateId } from '@/lib/utils'
-import LinkAdder from '@/components/LinkAdder'
 
 const ALL_STATUSES: ItemStatus[] = ['planned', 'preparing', 'submitted', 'awaiting_result', 'accepted', 'not_selected', 'completed']
 
 export default function EventsPage() {
   const { user } = useAuth()
-  const { events, addEvent, updateEvent, deleteEvent, comments, addComment } = useStore()
+  const {
+    events, addEvent, updateEvent, deleteEvent,
+    comments, addComment, updateComment, deleteComment,
+  } = useStore()
+
   const [showAdd, setShowAdd] = useState(false)
   const [newComment, setNewComment] = useState<Record<string, string>>({})
+  const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
-  const totalFileCount = useMemo(() => {
-    return events.reduce((s, e) => s + (Array.isArray(e.attachments) ? e.attachments.length : 0), 0)
-  }, [events])
+  const totalFileCount = useMemo(() =>
+    events.reduce((s, e) => s + (Array.isArray(e.attachments) ? e.attachments.length : 0), 0)
+  , [events])
+
   const [form, setForm] = useState({
     title: '', description: '', application_deadline: '',
     event_date: '', event_end_date: '',
@@ -69,12 +76,21 @@ export default function EventsPage() {
     setNewComment(prev => ({ ...prev, [parentId]: '' }))
   }
 
+  const startEdit = (id: string, content: string) => {
+    setEditingComment(id)
+    setEditText(content)
+  }
+
+  const saveEdit = (id: string) => {
+    if (editText.trim()) updateComment(id, editText.trim())
+    setEditingComment(null)
+  }
+
   const getComments = (parentId: string) =>
     comments.filter(c => c.parent_id === parentId).sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
 
-  // 조건부 이벤트는 부모가 accepted일 때만 활성 표시
   const isConditionalActive = (evt: ScienceEvent) => {
     if (!evt.is_conditional || !evt.condition_parent_id) return true
     const parent = events.find(e => e.id === evt.condition_parent_id)
@@ -119,7 +135,6 @@ export default function EventsPage() {
                 className="w-full border rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
-          {/* 관련 링크 (복수) */}
           <div className="space-y-2">
             <label className="text-xs text-slate-500 font-medium">🔗 관련 링크</label>
             {formLinks.map((link, idx) => (
@@ -205,21 +220,11 @@ export default function EventsPage() {
                 )}
               </div>
 
-              {Array.isArray(evt.links) && evt.links.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {evt.links.map((link, idx) => (
-                    <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition">
-                      🔗 {link.label || '관련 링크'}
-                    </a>
-                  ))}
-                </div>
-              )}
+              <LinkAdder
+                currentLinks={evt.links}
+                onUpdate={links => updateEvent(evt.id, { links })}
+              />
 
-              {/* 인라인 링크 추가 */}
-              <LinkAdder eventId={evt.id} currentLinks={evt.links} onUpdate={updateEvent} />
-
-              {/* 첨부파일 */}
               <FileAttachment
                 attachments={evt.attachments}
                 onUpdate={atts => updateEvent(evt.id, { attachments: atts })}
@@ -235,10 +240,33 @@ export default function EventsPage() {
               {/* 댓글 */}
               <div className="border-t mt-3 pt-2">
                 {getComments(evt.id).map(c => (
-                  <div key={c.id} className="text-sm mb-1">
-                    <span className="font-medium">{c.author_name}</span>
-                    <span className="text-slate-400 mx-1">·</span>
-                    <span>{c.content}</span>
+                  <div key={c.id} className="mb-1.5">
+                    {editingComment === c.id ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveEdit(c.id); if (e.key === 'Escape') setEditingComment(null) }}
+                          className="flex-1 text-sm border rounded px-2 py-1"
+                          autoFocus
+                        />
+                        <button onClick={() => saveEdit(c.id)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">저장</button>
+                        <button onClick={() => setEditingComment(null)} className="text-xs text-slate-400">취소</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between group">
+                        <div className="text-sm">
+                          <span className="font-medium">{c.author_name}</span>
+                          <span className="text-slate-400 mx-1">·</span>
+                          <span>{c.content}</span>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                          <button onClick={() => startEdit(c.id, c.content)} className="text-xs text-slate-400 hover:text-blue-600">수정</button>
+                          <button onClick={() => deleteComment(c.id)} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div className="flex gap-2 mt-1">

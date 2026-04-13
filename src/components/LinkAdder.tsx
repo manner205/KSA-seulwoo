@@ -1,37 +1,50 @@
 import { useState } from 'react'
-import type { EventLink, ScienceEvent } from '@/types/database'
+import type { EventLink } from '@/types/database'
 
 interface Props {
-  eventId: string
   currentLinks: EventLink[] | undefined
-  onUpdate: (id: string, patch: Partial<ScienceEvent>) => void
+  onUpdate: (links: EventLink[]) => void
 }
 
-export default function LinkAdder({ eventId, currentLinks, onUpdate }: Props) {
+export default function LinkAdder({ currentLinks, onUpdate }: Props) {
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
   const [url, setUrl] = useState('')
-  const [saved, setSaved] = useState(false)
+
+  const links = Array.isArray(currentLinks) ? currentLinks : []
+
+  const handleDelete = (idx: number) => {
+    onUpdate(links.filter((_, i) => i !== idx))
+  }
 
   const handleSave = () => {
     if (!url.trim()) return
-    const existing = Array.isArray(currentLinks) ? currentLinks : []
-    onUpdate(eventId, {
-      links: [...existing, { label: label.trim() || '관련 링크', url: url.trim() }]
-    })
+    onUpdate([...links, { label: label.trim() || '관련 링크', url: url.trim() }])
     setLabel('')
     setUrl('')
-    setSaved(true)
-    setTimeout(() => { setSaved(false); setOpen(false) }, 800)
+    setOpen(false)
   }
 
   return (
     <div className="mt-1">
+      {links.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {links.map((link, idx) => (
+            <span key={idx}
+              className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+              <a href={link.url} target="_blank" rel="noopener noreferrer"
+                className="hover:underline">
+                🔗 {link.label || '관련 링크'}
+              </a>
+              <button onClick={() => handleDelete(idx)}
+                className="text-red-400 hover:text-red-600 leading-none ml-0.5">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
       {!open ? (
         <button onClick={() => setOpen(true)}
           className="text-xs text-slate-400 hover:text-blue-600">+ 링크 추가</button>
-      ) : saved ? (
-        <span className="text-xs text-green-600 font-medium">✓ 저장됨</span>
       ) : (
         <div className="flex gap-2 items-center mt-1">
           <input type="text" placeholder="이름" value={label}

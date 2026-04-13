@@ -122,11 +122,23 @@ export function useStore() {
       .then(({ error }) => { if (error) console.error('addComment:', error) })
   }, [])
 
+  const updateComment = useCallback((id: string, content: string) => {
+    setComments(prev => prev.map(c => c.id === id ? { ...c, content } : c))
+    supabase.from('comments').update({ content }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('updateComment:', error) })
+  }, [])
+
+  const deleteComment = useCallback((id: string) => {
+    setComments(prev => prev.filter(c => c.id !== id))
+    supabase.from('comments').delete().eq('id', id)
+      .then(({ error }) => { if (error) console.error('deleteComment:', error) })
+  }, [])
+
   return {
     evidenceTracks, updateEvidenceTrack,
     activities, addActivity, updateActivity, deleteActivity,
     events, addEvent, updateEvent, deleteEvent,
     milestones,
-    comments, addComment,
+    comments, addComment, updateComment, deleteComment,
   }
 }

@@ -164,7 +164,8 @@ Comment (댓글 - 모든 항목 + 일반 메모)
 | `ksa-user` | 현재 로그인 사용자 | localStorage |
 | `ksa-file-store` DB | 첨부파일 바이너리 | IndexedDB |
 
-> ⚠️ **주의:** 브라우저 데이터 초기화 시 모든 데이터가 삭제됩니다. 다른 컴퓨터에서는 데이터가 공유되지 않습니다.
+> ✅ **Phase 7 이후:** Supabase 연결로 가족 3인이 서로 다른 기기에서 실시간 데이터 공유 가능. localStorage는 더 이상 사용하지 않음.
+> ⚠️ **파일 첨부는 예외:** IndexedDB의 파일 blob은 여전히 기기별 독립. Supabase Storage 연결 시 해결 예정.
 
 ---
 
@@ -254,13 +255,48 @@ npx tsc -b
 - 일반 메모 (NotesPage)도 Comment 타입으로 통합
 - Enter 키 전송, 역할별 색상
 
-### Phase 6: 기능 추가 - 파일 첨부 (최신)
+### Phase 6: 기능 추가 - 파일 첨부
 - `Attachment` 타입 추가 (database.ts)
 - `fileStore.ts`: IndexedDB 기반 파일 저장소 (save/get/delete/download/validate)
 - `FileAttachment.tsx`: 파일 업로드/다운로드/삭제 UI 컴포넌트
 - RoadmapPage: 증빙자료 3건 + 기타 활동 + 과학행사에 FileAttachment 통합
 - EventsPage: 행사 카드에 FileAttachment 통합
 - 전역 파일 수 제한 (totalFileCount) 계산 로직 추가
+
+### Phase 7: Supabase 연결 (인증 + DB + RLS)
+- `supabase/schema.sql`: 전체 DB 스키마 작성
+  - 테이블 7개: families, profiles, evidence_tracks, activity_records, science_events, milestones, comments
+  - Row Level Security (RLS) 정책 전체 적용 (family_id 기반 격리)
+  - 헬퍼 함수: `get_my_family_id()`, `is_admin_user()`
+  - 트리거: 회원가입 시 profile 자동 생성 (`handle_new_user`)
+  - 시드 데이터: 이슬우 가족 초기 데이터 (가족, 증빙자료, 마일스톤, 기타 활동, 과학행사)
+- `src/lib/supabase.ts`: Supabase 클라이언트 연결 (`createClient`)
+- `src/hooks/useStore.ts`: localStorage → Supabase 실시간 쿼리로 전면 교체
+  - 모든 CRUD (증빙자료, 활동, 행사, 댓글)가 Supabase 동기화
+  - Optimistic UI 패턴 유지 (setState 먼저, Supabase는 비동기)
+- **결과:** 가족 3인이 서로 다른 기기에서 실시간 데이터 공유 가능
+
+### Phase 8: Vercel 배포
+- `vercel.json` 추가: `pnpm run build`, outputDirectory `dist`, framework `vite`
+- `dist/` 빌드 산출물 생성 확인
+- **배포 URL:** https://ksa-seulwoo.vercel.app
+
+### Phase 9: 링크 삭제 + 댓글 수정/삭제 (2026-04-14)
+- `src/hooks/useStore.ts`: `updateComment`, `deleteComment` 함수 추가 (Supabase 동기화 포함)
+- `src/components/LinkAdder.tsx`: 전면 재작성
+  - 기존 링크 목록 표시 + 각 링크 옆 ✕ 삭제 버튼
+  - 링크 추가 인라인 폼 유지
+  - Props 변경: `(eventId, currentLinks, onUpdate)` → `(currentLinks, onUpdate: (links) => void)` (범용화)
+- `src/pages/RoadmapPage.tsx`:
+  - 증빙자료, 기타활동, 과학행사 링크 → LinkAdder로 통합 (별도 표시 코드 제거)
+  - 인라인 `EvidenceLinkAdder` 컴포넌트 제거
+  - 모든 댓글 섹션에 수정/삭제 버튼 추가 (hover 시 표시, 인라인 편집)
+- `src/pages/EventsPage.tsx`:
+  - LinkAdder로 링크 관리 통합
+  - 댓글 수정/삭제 추가
+- `src/pages/NotesPage.tsx`:
+  - 각 메모 카드에 수정/삭제 버튼 추가
+  - 수정 시 인라인 textarea 편집 모드로 전환
 
 ---
 
@@ -310,21 +346,18 @@ localStorage.removeItem('ksa-events')
 - [ ] 증빙자료(EvidenceTrack) 편집 기능 (연구 주제, 설명, 기간 직접 수정)
 - [ ] 활동(ActivityRecord) 결과(result) 입력 UI
 - [ ] 행사 수정 기능 (현재 추가/삭제만 가능)
-- [ ] 댓글 삭제 기능
+- [x] ~~댓글 삭제 기능~~ ✅ **완료** → Phase 9 참고 (수정도 함께 구현)
 - [ ] 대시보드에 첨부파일 현황 표시
 
 ### 중기
-- [ ] Supabase 연결 (인증 + DB + Storage)
-  - `.env`에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 설정
-  - `useStore.ts`를 Supabase 실시간 쿼리로 교체
-  - `fileStore.ts`를 Supabase Storage로 교체
-  - 가족 3인이 서로 다른 기기에서 실시간 데이터 공유 가능
+- [x] ~~Supabase 연결~~ ✅ **완료** → Phase 7 참고
+- [ ] fileStore.ts를 Supabase Storage로 교체 (현재 파일 blob은 IndexedDB에만 저장)
 - [ ] 마감 알림 (이메일 또는 Telegram 봇)
 - [ ] PWA (Progressive Web App) 설정 → 오프라인 + 홈화면 추가
 - [ ] 모바일 UI 개선 (반응형 레이아웃 세부 조정)
 
 ### 장기
-- [ ] 배포 (Vercel 또는 Netlify)
+- [x] ~~배포 (Vercel)~~ ✅ **완료** → Phase 8 참고
 - [ ] Telegram 봇 연동 (마감 알림 자동 전송)
 - [ ] 연구 타임라인 시각화 (간트 차트)
 - [ ] 연간 포트폴리오 리포트 PDF 출력
@@ -399,4 +432,4 @@ addComment({
 
 ---
 
-*이 문서는 2026-04-13 기준으로 작성되었습니다.*
+*이 문서는 2026-04-13 최초 작성, 2026-04-14 최종 업데이트 (Phase 9 반영)*

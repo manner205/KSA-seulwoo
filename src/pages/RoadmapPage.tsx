@@ -18,18 +18,25 @@ const CATEGORY_LABELS: Record<ActivityCategory, string> = {
 
 export default function RoadmapPage() {
   const { user } = useAuth()
-  const { evidenceTracks, updateEvidenceTrack, activities, addActivity, updateActivity, deleteActivity, events, updateEvent, comments, addComment } = useStore()
+  const {
+    evidenceTracks, updateEvidenceTrack,
+    activities, addActivity, updateActivity, deleteActivity,
+    events, updateEvent,
+    comments, addComment, updateComment, deleteComment,
+  } = useStore()
+
   const [showAddForm, setShowAddForm] = useState(false)
   const [newComment, setNewComment] = useState<Record<string, string>>({})
+  const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   const totalFileCount = useMemo(() => {
-    const etCount = evidenceTracks.reduce((s, t) => s + (Array.isArray(t.attachments) ? t.attachments.length : 0), 0)
+    const etCount  = evidenceTracks.reduce((s, t) => s + (Array.isArray(t.attachments) ? t.attachments.length : 0), 0)
     const actCount = activities.reduce((s, a) => s + (Array.isArray(a.attachments) ? a.attachments.length : 0), 0)
     const evtCount = events.reduce((s, e) => s + (Array.isArray(e.attachments) ? e.attachments.length : 0), 0)
     return etCount + actCount + evtCount
   }, [evidenceTracks, activities, events])
 
-  // 새 활동 폼 상태
   const [newAct, setNewAct] = useState({
     title: '', category: 'school_research' as ActivityCategory,
     organization: '', period: '', purpose: '',
@@ -74,10 +81,71 @@ export default function RoadmapPage() {
     setNewComment(prev => ({ ...prev, [parentId]: '' }))
   }
 
+  const startEdit = (id: string, content: string) => {
+    setEditingComment(id)
+    setEditText(content)
+  }
+
+  const saveEdit = (id: string) => {
+    if (editText.trim()) updateComment(id, editText.trim())
+    setEditingComment(null)
+  }
+
   const getComments = (parentId: string) =>
     comments.filter(c => c.parent_id === parentId).sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
+
+  const renderComments = (parentType: 'evidence_track' | 'activity_record' | 'science_event', parentId: string) => (
+    <div className="border-t pt-3 mt-3">
+      {getComments(parentId).map(c => (
+        <div key={c.id} className="mb-1.5">
+          {editingComment === c.id ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveEdit(c.id); if (e.key === 'Escape') setEditingComment(null) }}
+                className="flex-1 text-sm border rounded px-2 py-1"
+                autoFocus
+              />
+              <button onClick={() => saveEdit(c.id)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">저장</button>
+              <button onClick={() => setEditingComment(null)} className="text-xs text-slate-400">취소</button>
+            </div>
+          ) : (
+            <div className="flex items-start justify-between group">
+              <div className="text-sm">
+                <span className="font-medium">{c.author_name}</span>
+                <span className="text-slate-400 mx-1">·</span>
+                <span>{c.content}</span>
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                <button onClick={() => startEdit(c.id, c.content)} className="text-xs text-slate-400 hover:text-blue-600">수정</button>
+                <button onClick={() => deleteComment(c.id)} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="flex gap-2 mt-2">
+        <input
+          type="text"
+          placeholder="댓글 입력..."
+          value={newComment[parentId] ?? ''}
+          onChange={e => setNewComment(prev => ({ ...prev, [parentId]: e.target.value }))}
+          onKeyDown={e => e.key === 'Enter' && handleAddComment(parentType, parentId)}
+          className="flex-1 text-sm border rounded-lg px-3 py-1.5"
+        />
+        <button
+          onClick={() => handleAddComment(parentType, parentId)}
+          className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+        >
+          등록
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-8">
@@ -106,52 +174,18 @@ export default function RoadmapPage() {
               <div className="text-sm text-slate-500 mb-1">🔬 연구 주제: {t.research_topic}</div>
               <div className="text-sm text-slate-600 mb-3">{t.description}</div>
 
-              {/* 링크 */}
-              {Array.isArray(t.links) && t.links.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {t.links.map((link, idx) => (
-                    <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-full">
-                      🔗 {link.label || '관련 링크'}
-                    </a>
-                  ))}
-                </div>
-              )}
-              <EvidenceLinkAdder trackId={t.id} currentLinks={t.links} onUpdate={updateEvidenceTrack} />
+              <LinkAdder
+                currentLinks={t.links}
+                onUpdate={links => updateEvidenceTrack(t.id, { links })}
+              />
 
-              {/* 첨부파일 */}
               <FileAttachment
                 attachments={t.attachments}
                 onUpdate={atts => updateEvidenceTrack(t.id, { attachments: atts })}
                 totalFileCount={totalFileCount}
               />
 
-              {/* 댓글 */}
-              <div className="border-t pt-3">
-                {getComments(t.id).map(c => (
-                  <div key={c.id} className="text-sm mb-1">
-                    <span className="font-medium">{c.author_name}</span>
-                    <span className="text-slate-400 mx-1">·</span>
-                    <span>{c.content}</span>
-                  </div>
-                ))}
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    placeholder="댓글 입력..."
-                    value={newComment[t.id] ?? ''}
-                    onChange={e => setNewComment(prev => ({ ...prev, [t.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleAddComment('evidence_track', t.id)}
-                    className="flex-1 text-sm border rounded-lg px-3 py-1.5"
-                  />
-                  <button
-                    onClick={() => handleAddComment('evidence_track', t.id)}
-                    className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-                  >
-                    등록
-                  </button>
-                </div>
-              </div>
+              {renderComments('evidence_track', t.id)}
             </div>
           ))}
         </div>
@@ -223,32 +257,13 @@ export default function RoadmapPage() {
               </div>
               {a.purpose && <div className="text-xs text-slate-400 mt-1">목적: {a.purpose}</div>}
 
-              {/* 첨부파일 */}
               <FileAttachment
                 attachments={a.attachments}
                 onUpdate={atts => updateActivity(a.id, { attachments: atts })}
                 totalFileCount={totalFileCount}
               />
 
-              {/* 댓글 */}
-              <div className="border-t mt-3 pt-2">
-                {getComments(a.id).map(c => (
-                  <div key={c.id} className="text-sm mb-1">
-                    <span className="font-medium">{c.author_name}</span>
-                    <span className="text-slate-400 mx-1">·</span>
-                    <span>{c.content}</span>
-                  </div>
-                ))}
-                <div className="flex gap-2 mt-1">
-                  <input type="text" placeholder="댓글..."
-                    value={newComment[a.id] ?? ''}
-                    onChange={e => setNewComment(prev => ({ ...prev, [a.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleAddComment('activity_record', a.id)}
-                    className="flex-1 text-sm border rounded px-2 py-1" />
-                  <button onClick={() => handleAddComment('activity_record', a.id)}
-                    className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">등록</button>
-                </div>
-              </div>
+              {renderComments('activity_record', a.id)}
             </div>
           ))}
         </div>
@@ -298,101 +313,31 @@ export default function RoadmapPage() {
                       <span>📅 행사: {formatDate(evt.event_date)}{evt.event_end_date ? ` ~ ${formatDate(evt.event_end_date)}` : ''}</span>
                     )}
                   </div>
-                  {Array.isArray(evt.links) && evt.links.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {evt.links.map((link, idx) => (
-                        <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-full">
-                          🔗 {link.label || '관련 링크'}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  <LinkAdder eventId={evt.id} currentLinks={evt.links} onUpdate={updateEvent} />
+
+                  <LinkAdder
+                    currentLinks={evt.links}
+                    onUpdate={links => updateEvent(evt.id, { links })}
+                  />
+
                   <FileAttachment
                     attachments={evt.attachments}
                     onUpdate={atts => updateEvent(evt.id, { attachments: atts })}
                     totalFileCount={totalFileCount}
                   />
+
                   {evt.preparation_notes && (
                     <div className="mt-1 text-xs text-yellow-700 bg-yellow-50 rounded px-2 py-1">
                       📝 {evt.preparation_notes}
                     </div>
                   )}
-                  {/* 댓글 */}
-                  <div className="border-t mt-2 pt-2">
-                    {getComments(evt.id).map(c => (
-                      <div key={c.id} className="text-sm mb-1">
-                        <span className="font-medium">{c.author_name}</span>
-                        <span className="text-slate-400 mx-1">·</span>
-                        <span>{c.content}</span>
-                      </div>
-                    ))}
-                    <div className="flex gap-2 mt-1">
-                      <input type="text" placeholder="댓글..."
-                        value={newComment[evt.id] ?? ''}
-                        onChange={e => setNewComment(prev => ({ ...prev, [evt.id]: e.target.value }))}
-                        onKeyDown={e => e.key === 'Enter' && handleAddComment('science_event', evt.id)}
-                        className="flex-1 text-sm border rounded px-2 py-1" />
-                      <button onClick={() => handleAddComment('science_event', evt.id)}
-                        className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">등록</button>
-                    </div>
-                  </div>
+
+                  {renderComments('science_event', evt.id)}
                 </div>
               )
             })}
           </div>
         )}
       </section>
-    </div>
-  )
-}
-
-/* 증빙자료용 링크 추가 래퍼 */
-function EvidenceLinkAdder({ trackId, currentLinks, onUpdate }: {
-  trackId: string
-  currentLinks: import('@/types/database').EventLink[] | undefined
-  onUpdate: (id: string, patch: Partial<import('@/types/database').EvidenceTrack>) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [label, setLabel] = useState('')
-  const [url, setUrl] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  const handleSave = () => {
-    if (!url.trim()) return
-    const existing = Array.isArray(currentLinks) ? currentLinks : []
-    onUpdate(trackId, {
-      links: [...existing, { label: label.trim() || '관련 링크', url: url.trim() }]
-    })
-    setLabel('')
-    setUrl('')
-    setSaved(true)
-    setTimeout(() => { setSaved(false); setOpen(false) }, 800)
-  }
-
-  return (
-    <div className="mb-2">
-      {!open ? (
-        <button onClick={() => setOpen(true)}
-          className="text-xs text-slate-400 hover:text-blue-600">+ 링크 추가</button>
-      ) : saved ? (
-        <span className="text-xs text-green-600 font-medium">✓ 저장됨</span>
-      ) : (
-        <div className="flex gap-2 items-center">
-          <input type="text" placeholder="이름" value={label}
-            onChange={e => setLabel(e.target.value)}
-            className="w-24 text-xs border rounded px-2 py-1" />
-          <input type="url" placeholder="https://..." value={url}
-            onChange={e => setUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSave()}
-            className="flex-1 text-xs border rounded px-2 py-1" />
-          <button onClick={handleSave}
-            className="text-xs bg-blue-600 text-white px-2 py-1 rounded">저장</button>
-          <button onClick={() => setOpen(false)}
-            className="text-xs text-slate-400">취소</button>
-        </div>
-      )}
     </div>
   )
 }

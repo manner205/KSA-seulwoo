@@ -107,7 +107,7 @@ export const SEED_ACTIVITIES: ActivityRecord[] = [
     family_id: FAMILY_ID,
     title: '동국대 영재교육원 생명과학',
     category: 'gifted_education',
-    organization: '동국대학교 영재교육원',
+    organization: '동국대 영재교육원',
     period: '2024년 ~ 현재 (3년째 재학)',
     result: '재학 중',
     can_use_as_evidence: true,
