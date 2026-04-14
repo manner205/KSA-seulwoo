@@ -255,13 +255,13 @@ export default function EventsPage() {
                         <button onClick={() => setEditingComment(null)} className="text-xs text-slate-400">취소</button>
                       </div>
                     ) : (
-                      <div className="flex items-start justify-between group">
+                      <div className="flex items-start justify-between">
                         <div className="text-sm">
                           <span className="font-medium">{c.author_name}</span>
                           <span className="text-slate-400 mx-1">·</span>
                           <span>{c.content}</span>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                        <div className="flex gap-2 ml-2 shrink-0">
                           <button onClick={() => startEdit(c.id, c.content)} className="text-xs text-slate-400 hover:text-blue-600">수정</button>
                           <button onClick={() => deleteComment(c.id)} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
                         </div>
