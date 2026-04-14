@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '@/hooks/useStore'
 import { useAuth } from '@/contexts/AuthContext'
 import { generateId } from '@/lib/utils'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 export default function NotesPage() {
   const { user } = useAuth()
@@ -9,6 +10,7 @@ export default function NotesPage() {
   const [text, setText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const generalNotes = comments
     .filter(c => c.parent_type === 'general')
@@ -48,6 +50,13 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-6">
+      {confirmId && (
+        <ConfirmDialog
+          message="이 메모를 삭제할까요?"
+          onConfirm={() => { deleteComment(confirmId); setConfirmId(null) }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
       <h1 className="text-2xl font-bold">💬 공유 메모</h1>
       <p className="text-sm text-slate-500">가족 간 자유롭게 메모를 남기세요. 항목별 댓글은 각 페이지에서도 쓸 수 있습니다.</p>
 
@@ -91,7 +100,7 @@ export default function NotesPage() {
                 <div className="flex gap-2">
                   <button onClick={() => startEdit(note.id, note.content)}
                     className="text-xs text-slate-400 hover:text-blue-600">수정</button>
-                  <button onClick={() => deleteComment(note.id)}
+                  <button onClick={() => setConfirmId(note.id)}
                     className="text-xs text-slate-400 hover:text-red-500">삭제</button>
                 </div>
               </div>

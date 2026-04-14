@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { EventLink } from '@/types/database'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface Props {
   currentLinks: EventLink[] | undefined
@@ -10,11 +11,13 @@ export default function LinkAdder({ currentLinks, onUpdate }: Props) {
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
   const [url, setUrl] = useState('')
+  const [confirmIdx, setConfirmIdx] = useState<number | null>(null)
 
   const links = Array.isArray(currentLinks) ? currentLinks : []
 
   const handleDelete = (idx: number) => {
     onUpdate(links.filter((_, i) => i !== idx))
+    setConfirmIdx(null)
   }
 
   const handleSave = () => {
@@ -27,6 +30,13 @@ export default function LinkAdder({ currentLinks, onUpdate }: Props) {
 
   return (
     <div className="mt-1">
+      {confirmIdx !== null && (
+        <ConfirmDialog
+          message={`'${links[confirmIdx]?.label || '관련 링크'}'\n링크를 삭제할까요?`}
+          onConfirm={() => handleDelete(confirmIdx)}
+          onCancel={() => setConfirmIdx(null)}
+        />
+      )}
       {links.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1">
           {links.map((link, idx) => (
@@ -36,7 +46,7 @@ export default function LinkAdder({ currentLinks, onUpdate }: Props) {
                 className="hover:underline">
                 🔗 {link.label || '관련 링크'}
               </a>
-              <button onClick={() => handleDelete(idx)}
+              <button onClick={() => setConfirmIdx(idx)}
                 className="text-red-400 hover:text-red-600 leading-none ml-0.5">✕</button>
             </span>
           ))}

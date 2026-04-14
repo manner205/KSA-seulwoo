@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import DdayBadge from '@/components/DdayBadge'
 import LinkAdder from '@/components/LinkAdder'
 import FileAttachment from '@/components/FileAttachment'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import type { ItemStatus, ActivityRecord, ActivityCategory } from '@/types/database'
 import { STATUS_LABELS, generateId, formatDate, formatDateTime } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ export default function RoadmapPage() {
   const [newComment, setNewComment] = useState<Record<string, string>>({})
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'activity' | 'comment'; id: string } | null>(null)
 
   const totalFileCount = useMemo(() => {
     const etCount  = evidenceTracks.reduce((s, t) => s + (Array.isArray(t.attachments) ? t.attachments.length : 0), 0)
@@ -122,7 +124,7 @@ export default function RoadmapPage() {
               </div>
               <div className="flex gap-2 ml-2 shrink-0">
                 <button onClick={() => startEdit(c.id, c.content)} className="text-xs text-slate-400 hover:text-blue-600">수정</button>
-                <button onClick={() => deleteComment(c.id)} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
+                <button onClick={() => setConfirmDelete({ type: 'comment', id: c.id })} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
               </div>
             </div>
           )}
@@ -149,6 +151,17 @@ export default function RoadmapPage() {
 
   return (
     <div className="space-y-8">
+      {confirmDelete && (
+        <ConfirmDialog
+          message={confirmDelete.type === 'activity' ? '이 활동을 삭제할까요?' : '이 댓글을 삭제할까요?'}
+          onConfirm={() => {
+            if (confirmDelete.type === 'activity') deleteActivity(confirmDelete.id)
+            else deleteComment(confirmDelete.id)
+            setConfirmDelete(null)
+          }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       <h1 className="text-2xl font-bold">📋 포트폴리오 로드맵</h1>
 
       {/* ── 핵심 증빙자료 3건 ── */}
@@ -246,7 +259,7 @@ export default function RoadmapPage() {
                     className="text-xs border rounded px-1.5 py-1">
                     {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                   </select>
-                  <button onClick={() => deleteActivity(a.id)}
+                  <button onClick={() => setConfirmDelete({ type: 'activity', id: a.id })}
                     className="text-xs text-red-400 hover:text-red-600">삭제</button>
                 </div>
               </div>

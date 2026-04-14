@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import DdayBadge from '@/components/DdayBadge'
 import FileAttachment from '@/components/FileAttachment'
 import LinkAdder from '@/components/LinkAdder'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import type { ItemStatus, ScienceEvent, EventLink } from '@/types/database'
 import { STATUS_LABELS, formatDate, formatDateTime, generateId } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ export default function EventsPage() {
   const [newComment, setNewComment] = useState<Record<string, string>>({})
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'event' | 'comment'; id: string } | null>(null)
 
   const totalFileCount = useMemo(() =>
     events.reduce((s, e) => s + (Array.isArray(e.attachments) ? e.attachments.length : 0), 0)
@@ -99,6 +101,17 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
+      {confirmDelete && (
+        <ConfirmDialog
+          message={confirmDelete.type === 'event' ? '이 행사를 삭제할까요?' : '이 댓글을 삭제할까요?'}
+          onConfirm={() => {
+            if (confirmDelete.type === 'event') deleteEvent(confirmDelete.id)
+            else deleteComment(confirmDelete.id)
+            setConfirmDelete(null)
+          }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">📅 과학행사 일정</h1>
         <button onClick={() => setShowAdd(!showAdd)}
@@ -203,7 +216,7 @@ export default function EventsPage() {
                     {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                   </select>
                   {!evt.is_conditional && (
-                    <button onClick={() => deleteEvent(evt.id)}
+                    <button onClick={() => setConfirmDelete({ type: 'event', id: evt.id })}
                       className="text-xs text-red-400 hover:text-red-600">삭제</button>
                   )}
                 </div>
@@ -263,7 +276,7 @@ export default function EventsPage() {
                         </div>
                         <div className="flex gap-2 ml-2 shrink-0">
                           <button onClick={() => startEdit(c.id, c.content)} className="text-xs text-slate-400 hover:text-blue-600">수정</button>
-                          <button onClick={() => deleteComment(c.id)} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
+                          <button onClick={() => setConfirmDelete({ type: 'comment', id: c.id })} className="text-xs text-slate-400 hover:text-red-500">삭제</button>
                         </div>
                       </div>
                     )}
