@@ -210,7 +210,8 @@ create policy "profiles_select" on public.profiles for select
 create policy "profiles_insert" on public.profiles for insert
   with check (id = auth.uid() or is_admin_user());
 create policy "profiles_update" on public.profiles for update
-  using (id = auth.uid() or is_admin_user());
+  using      (id = auth.uid() or is_admin_user())
+  with check (id = auth.uid() or is_admin_user());
 create policy "profiles_delete" on public.profiles for delete
   using (is_admin_user());
 

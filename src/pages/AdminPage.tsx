@@ -29,9 +29,6 @@ const ROLE_EMOJIS: Record<UserRole, string> = {
 export default function AdminPage() {
   const { isAdmin, refreshProfile } = useAuth()
 
-  // 관리자 아닌 경우 리다이렉트
-  if (!isAdmin) return <Navigate to="/" replace />
-
   const [tab, setTab] = useState<Tab>('users')
   const [profiles, setProfiles]   = useState<Profile[]>([])
   const [families, setFamilies]   = useState<Family[]>([])
@@ -134,14 +131,15 @@ export default function AdminPage() {
   // ── 프로필 편집 저장 ──────────────────────────────────
   const handleSaveEdit = async (id: string) => {
     const { error } = await supabase.from('profiles').update(editPatch as any).eq('id', id)
-    if (error) showMsg('err', error.message)
-    else {
-      setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...editPatch } : p))
+    if (error) {
+      showMsg('err', `저장 실패: ${error.message}`)
+    } else {
+      await fetchAll()  // DB에서 최신 데이터 재로드
       if (editPatch.family_id !== undefined) await refreshProfile()
       showMsg('ok', '저장되었습니다.')
+      setEditId(null)
+      setEditPatch({})
     }
-    setEditId(null)
-    setEditPatch({})
   }
 
   // ── 비밀번호 재설정 메일 ────────────────────────────────
@@ -150,6 +148,9 @@ export default function AdminPage() {
     if (error) showMsg('err', error.message)
     else showMsg('ok', `${email} 으로 비밀번호 재설정 메일을 발송했습니다.`)
   }
+
+  // 관리자 아닌 경우 리다이렉트 (모든 hooks 선언 이후에 위치)
+  if (!isAdmin) return <Navigate to="/" replace />
 
   const familyName = (fid: string | null) =>
     families.find(f => f.id === fid)?.name ?? '미배정'
