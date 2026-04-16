@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Navigate } from 'react-router-dom'
 import type { Profile, Family, UserRole } from '@/types/database'
 import { Users, Building2, UserPlus, RefreshCw, Mail, Edit2, Check, X } from 'lucide-react'
 
@@ -27,7 +26,7 @@ const ROLE_EMOJIS: Record<UserRole, string> = {
 }
 
 export default function AdminPage() {
-  const { isAdmin, refreshProfile } = useAuth()
+  const { refreshProfile } = useAuth()
 
   const [tab, setTab] = useState<Tab>('users')
   const [profiles, setProfiles]   = useState<Profile[]>([])
@@ -148,9 +147,6 @@ export default function AdminPage() {
     if (error) showMsg('err', error.message)
     else showMsg('ok', `${email} 으로 비밀번호 재설정 메일을 발송했습니다.`)
   }
-
-  // 관리자 아닌 경우 리다이렉트 (모든 hooks 선언 이후에 위치)
-  if (!isAdmin) return <Navigate to="/" replace />
 
   const familyName = (fid: string | null) =>
     families.find(f => f.id === fid)?.name ?? '미배정'

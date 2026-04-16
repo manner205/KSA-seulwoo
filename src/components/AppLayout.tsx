@@ -13,9 +13,7 @@ export default function AppLayout() {
     { to: '/roadmap', icon: Map,             label: '포트폴리오', end: false },
     { to: '/events',  icon: CalendarDays,    label: '행사 일정', end: false },
     { to: '/notes',   icon: MessageSquare,   label: '공유 메모', end: false },
-    ...(isAdmin
-      ? [{ to: '/admin', icon: ShieldCheck, label: '관리', end: false }]
-      : []),
+    { to: '/admin',   icon: ShieldCheck,     label: '관리', end: false },
   ]
 
   return (
