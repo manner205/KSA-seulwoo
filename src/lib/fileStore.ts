@@ -2,20 +2,30 @@
  * Supabase Storage 기반 파일 저장소.
  * 버킷: ksa-attachments (public)
  * 경로 형식: {userId}/{uuid}.{ext}
+ *
+ * Storage 업로드/삭제는 service_role 클라이언트 사용 (RLS 우회).
+ * 다운로드는 public URL 사용.
  */
 
-import { supabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
+const SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
 const BUCKET = 'ksa-attachments'
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_FILE_COUNT = 20
+
+// Storage 전용 admin 클라이언트 (RLS 우회)
+const storageAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+})
 
 /** 파일을 Supabase Storage에 업로드하고 storage_path를 반환 */
 export async function saveFile(userId: string, id: string, file: File): Promise<string> {
   const ext = file.name.split('.').pop() ?? 'bin'
   const storagePath = `${userId}/${id}.${ext}`
 
-  const { error } = await supabase.storage
+  const { error } = await storageAdmin.storage
     .from(BUCKET)
     .upload(storagePath, file, { upsert: false, contentType: file.type || 'application/octet-stream' })
 
@@ -29,7 +39,7 @@ export function downloadFile(storagePath: string, filename: string): void {
     alert('파일을 찾을 수 없습니다.\n(이전 버전에서 등록된 파일은 다시 첨부해야 합니다.)')
     return
   }
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath)
+  const { data } = storageAdmin.storage.from(BUCKET).getPublicUrl(storagePath)
   const a = document.createElement('a')
   a.href = data.publicUrl
   a.download = filename
@@ -41,8 +51,8 @@ export function downloadFile(storagePath: string, filename: string): void {
 
 /** Storage에서 파일 삭제 */
 export async function deleteFile(storagePath: string): Promise<void> {
-  if (!storagePath) return // 구버전 IndexedDB 항목은 그냥 무시
-  const { error } = await supabase.storage.from(BUCKET).remove([storagePath])
+  if (!storagePath) return
+  const { error } = await storageAdmin.storage.from(BUCKET).remove([storagePath])
   if (error) throw error
 }
 
