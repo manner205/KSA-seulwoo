@@ -28,6 +28,7 @@ export interface Attachment {
   filename: string
   size: number
   mime_type: string
+  storage_path: string   // Supabase Storage 경로 (bucket 내 상대경로)
   created_at: string
 }
 

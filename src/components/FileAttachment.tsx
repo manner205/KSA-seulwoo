@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import type { Attachment } from '@/types/database'
-import { saveFile, downloadFile, deleteFile, formatFileSize, validateFile, } from '@/lib/fileStore'
+import { saveFile, downloadFile, deleteFile, formatFileSize, validateFile } from '@/lib/fileStore'
 import { generateId } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 import { Paperclip, Download, Trash2 } from 'lucide-react'
 
 interface Props {
   attachments: Attachment[] | undefined
   onUpdate: (attachments: Attachment[]) => void
-  /** 전체 파일 수 (전역 제한 검사용) */
   totalFileCount: number
 }
 
@@ -25,13 +25,14 @@ function getIcon(filename: string): string {
 }
 
 export default function FileAttachment({ attachments, onUpdate, totalFileCount }: Props) {
+  const { user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const list = Array.isArray(attachments) ? attachments : []
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !user) return
 
     const error = validateFile(file, totalFileCount)
     if (error) {
@@ -43,17 +44,18 @@ export default function FileAttachment({ attachments, onUpdate, totalFileCount }
     setUploading(true)
     try {
       const id = generateId()
-      await saveFile(id, file)
+      const storagePath = await saveFile(user.id, id, file)
       const attachment: Attachment = {
         id,
         filename: file.name,
         size: file.size,
         mime_type: file.type || 'application/octet-stream',
+        storage_path: storagePath,
         created_at: new Date().toISOString(),
       }
       onUpdate([...list, attachment])
     } catch (err) {
-      alert('파일 저장 중 오류가 발생했습니다.')
+      alert('파일 업로드 중 오류가 발생했습니다.')
       console.error(err)
     } finally {
       setUploading(false)
@@ -64,15 +66,16 @@ export default function FileAttachment({ attachments, onUpdate, totalFileCount }
   const handleDelete = async (att: Attachment) => {
     if (!confirm(`"${att.filename}" 파일을 삭제할까요?`)) return
     try {
-      await deleteFile(att.id)
+      await deleteFile(att.storage_path)
       onUpdate(list.filter(a => a.id !== att.id))
     } catch (err) {
+      alert('파일 삭제 중 오류가 발생했습니다.')
       console.error(err)
     }
   }
 
   const handleDownload = (att: Attachment) => {
-    downloadFile(att.id, att.filename, att.mime_type)
+    downloadFile(att.storage_path, att.filename)
   }
 
   return (

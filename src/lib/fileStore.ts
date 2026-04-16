@@ -1,78 +1,49 @@
 /**
- * IndexedDB 기반 파일 저장소.
- * Supabase Storage 연결 전까지 브라우저 로컬에 파일을 저장합니다.
- * 최대 20개, 각 10MB 이내.
+ * Supabase Storage 기반 파일 저장소.
+ * 버킷: ksa-attachments (public)
+ * 경로 형식: {userId}/{uuid}.{ext}
  */
 
-const DB_NAME = 'ksa-file-store'
-const DB_VERSION = 1
-const STORE_NAME = 'files'
+import { supabase } from './supabase'
 
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME)
-      }
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
+const BUCKET = 'ksa-attachments'
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_FILE_COUNT = 20
+
+/** 파일을 Supabase Storage에 업로드하고 storage_path를 반환 */
+export async function saveFile(userId: string, id: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'bin'
+  const storagePath = `${userId}/${id}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, file, { upsert: false, contentType: file.type || 'application/octet-stream' })
+
+  if (error) throw error
+  return storagePath
 }
 
-export async function saveFile(id: string, file: File): Promise<void> {
-  const db = await openDB()
-  const buffer = await file.arrayBuffer()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    tx.objectStore(STORE_NAME).put(buffer, id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-}
-
-export async function getFile(id: string, filename: string, mimeType: string): Promise<File | null> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly')
-    const req = tx.objectStore(STORE_NAME).get(id)
-    req.onsuccess = () => {
-      if (req.result) {
-        resolve(new File([req.result], filename, { type: mimeType }))
-      } else {
-        resolve(null)
-      }
-    }
-    req.onerror = () => reject(req.error)
-  })
-}
-
-export async function deleteFile(id: string): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    tx.objectStore(STORE_NAME).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-}
-
-export async function downloadFile(id: string, filename: string, mimeType: string): Promise<void> {
-  const file = await getFile(id, filename, mimeType)
-  if (!file) {
-    alert('파일을 찾을 수 없습니다.')
+/** Public URL로 파일 다운로드 트리거 */
+export function downloadFile(storagePath: string, filename: string): void {
+  if (!storagePath) {
+    alert('파일을 찾을 수 없습니다.\n(이전 버전에서 등록된 파일은 다시 첨부해야 합니다.)')
     return
   }
-  const url = URL.createObjectURL(file)
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath)
   const a = document.createElement('a')
-  a.href = url
+  a.href = data.publicUrl
   a.download = filename
+  a.target = '_blank'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+}
+
+/** Storage에서 파일 삭제 */
+export async function deleteFile(storagePath: string): Promise<void> {
+  if (!storagePath) return // 구버전 IndexedDB 항목은 그냥 무시
+  const { error } = await supabase.storage.from(BUCKET).remove([storagePath])
+  if (error) throw error
 }
 
 export function formatFileSize(bytes: number): string {
@@ -80,9 +51,6 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const MAX_FILE_COUNT = 20
 
 export function validateFile(file: File, currentTotal: number): string | null {
   if (file.size > MAX_FILE_SIZE) {
