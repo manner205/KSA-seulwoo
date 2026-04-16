@@ -21,7 +21,7 @@ export default function DashboardPage() {
 
   // 증빙자료 진행률
   const completedEv = evidenceTracks.filter(t => t.status === 'completed' || t.status === 'submitted').length
-  const evPercent = Math.round((completedEv / evidenceTracks.length) * 100)
+  const evPercent = evidenceTracks.length > 0 ? Math.round((completedEv / evidenceTracks.length) * 100) : 0
 
   // 결과 대기 항목
   const awaitingItems = [
@@ -43,20 +43,34 @@ export default function DashboardPage() {
         </h1>
         <p className="text-blue-100 text-sm mb-4">KSA 장영실전형 입학 목표</p>
         <div className="grid grid-cols-2 gap-4">
-          {applicationMs && (
-            <div className="bg-white/15 rounded-xl p-4">
-              <div className="text-xs text-blue-200">원서 접수까지</div>
-              <div className="text-2xl font-bold">{dDayLabel(applicationMs.target_date)}</div>
-              <div className="text-xs text-blue-200 mt-1">{formatDate(applicationMs.target_date)}</div>
-            </div>
-          )}
-          {interviewMs && (
-            <div className="bg-white/15 rounded-xl p-4">
-              <div className="text-xs text-blue-200">구술 면접까지</div>
-              <div className="text-2xl font-bold">{dDayLabel(interviewMs.target_date)}</div>
-              <div className="text-xs text-blue-200 mt-1">{formatDate(interviewMs.target_date)}</div>
-            </div>
-          )}
+          <div className="bg-white/15 rounded-xl p-4">
+            <div className="text-xs text-blue-200">원서 접수까지</div>
+            {applicationMs ? (
+              <>
+                <div className="text-2xl font-bold">{dDayLabel(applicationMs.target_date)}</div>
+                <div className="text-xs text-blue-200 mt-1">{formatDate(applicationMs.target_date)}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">D-???</div>
+                <div className="text-xs text-blue-200 mt-1">2028.03.20</div>
+              </>
+            )}
+          </div>
+          <div className="bg-white/15 rounded-xl p-4">
+            <div className="text-xs text-blue-200">구술 면접까지</div>
+            {interviewMs ? (
+              <>
+                <div className="text-2xl font-bold">{dDayLabel(interviewMs.target_date)}</div>
+                <div className="text-xs text-blue-200 mt-1">{formatDate(interviewMs.target_date)}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">D-???</div>
+                <div className="text-xs text-blue-200 mt-1">2028.06.23</div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
