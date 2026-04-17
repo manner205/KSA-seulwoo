@@ -32,6 +32,36 @@ export default function RoadmapPage() {
   const [editText, setEditText] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'activity' | 'comment'; id: string } | null>(null)
 
+  // 증빙자료 인라인 편집
+  const [editingTrack, setEditingTrack] = useState<string | null>(null)
+  const [trackEdits, setTrackEdits] = useState<{ title: string; research_topic: string; description: string; target_period: string }>({
+    title: '', research_topic: '', description: '', target_period: '',
+  })
+
+  const startEditTrack = (t: typeof evidenceTracks[0]) => {
+    setEditingTrack(t.id)
+    setTrackEdits({ title: t.title, research_topic: t.research_topic, description: t.description, target_period: t.target_period })
+  }
+  const saveEditTrack = (id: string) => {
+    updateEvidenceTrack(id, trackEdits)
+    setEditingTrack(null)
+  }
+
+  // 활동 인라인 편집
+  const [editingActivity, setEditingActivity] = useState<string | null>(null)
+  const [actEdits, setActEdits] = useState<{ title: string; organization: string; period: string; purpose: string; result: string; can_use_as_evidence: boolean }>({
+    title: '', organization: '', period: '', purpose: '', result: '', can_use_as_evidence: false,
+  })
+
+  const startEditActivity = (a: ActivityRecord) => {
+    setEditingActivity(a.id)
+    setActEdits({ title: a.title, organization: a.organization, period: a.period, purpose: a.purpose, result: a.result, can_use_as_evidence: a.can_use_as_evidence })
+  }
+  const saveEditActivity = (id: string) => {
+    updateActivity(id, actEdits)
+    setEditingActivity(null)
+  }
+
   const totalFileCount = useMemo(() => {
     const etCount  = evidenceTracks.reduce((s, t) => s + (Array.isArray(t.attachments) ? t.attachments.length : 0), 0)
     const actCount = activities.reduce((s, a) => s + (Array.isArray(a.attachments) ? a.attachments.length : 0), 0)
@@ -171,21 +201,75 @@ export default function RoadmapPage() {
           {evidenceTracks.map(t => (
             <div key={t.id} className="bg-white rounded-xl border border-purple-200 p-5">
               <div className="flex items-start justify-between mb-2">
-                <div>
+                <div className="flex-1 min-w-0 mr-2">
                   <span className="text-xs font-bold text-purple-500 mr-2">{t.stage}단계</span>
-                  <span className="font-semibold text-lg">{t.title}</span>
+                  {editingTrack === t.id ? (
+                    <input
+                      type="text"
+                      value={trackEdits.title}
+                      onChange={e => setTrackEdits(p => ({ ...p, title: e.target.value }))}
+                      className="font-semibold text-lg border-b border-purple-400 outline-none w-auto"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="font-semibold text-lg">{t.title}</span>
+                  )}
                 </div>
-                <select
-                  value={t.status}
-                  onChange={e => updateEvidenceTrack(t.id, { status: e.target.value as ItemStatus })}
-                  className="text-sm border rounded-lg px-2 py-1"
-                >
-                  {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
+                <div className="flex items-center gap-2 shrink-0">
+                  {editingTrack === t.id ? (
+                    <>
+                      <button onClick={() => saveEditTrack(t.id)} className="text-xs bg-purple-600 text-white px-2 py-1 rounded">저장</button>
+                      <button onClick={() => setEditingTrack(null)} className="text-xs text-slate-400">취소</button>
+                    </>
+                  ) : (
+                    <button onClick={() => startEditTrack(t)} className="text-xs text-slate-400 hover:text-purple-600">✏️ 수정</button>
+                  )}
+                  <select
+                    value={t.status}
+                    onChange={e => updateEvidenceTrack(t.id, { status: e.target.value as ItemStatus })}
+                    className="text-sm border rounded-lg px-2 py-1"
+                  >
+                    {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="text-sm text-slate-500 mb-1">📅 {t.target_period}</div>
-              <div className="text-sm text-slate-500 mb-1">🔬 연구 주제: {t.research_topic}</div>
-              <div className="text-sm text-slate-600 mb-3">{t.description}</div>
+              {editingTrack === t.id ? (
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-400 w-16 shrink-0">📅 기간</span>
+                    <input
+                      type="text"
+                      value={trackEdits.target_period}
+                      onChange={e => setTrackEdits(p => ({ ...p, target_period: e.target.value }))}
+                      className="flex-1 border rounded px-2 py-1"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-400 w-16 shrink-0">🔬 주제</span>
+                    <input
+                      type="text"
+                      value={trackEdits.research_topic}
+                      onChange={e => setTrackEdits(p => ({ ...p, research_topic: e.target.value }))}
+                      className="flex-1 border rounded px-2 py-1"
+                    />
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <span className="text-slate-400 w-16 shrink-0 mt-1">📝 설명</span>
+                    <textarea
+                      value={trackEdits.description}
+                      onChange={e => setTrackEdits(p => ({ ...p, description: e.target.value }))}
+                      rows={3}
+                      className="flex-1 border rounded px-2 py-1 resize-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm text-slate-500 mb-1">📅 {t.target_period}</div>
+                  <div className="text-sm text-slate-500 mb-1">🔬 연구 주제: {t.research_topic}</div>
+                  <div className="text-sm text-slate-600 mb-3">{t.description}</div>
+                </>
+              )}
 
               <LinkAdder
                 currentLinks={t.links}
@@ -247,28 +331,69 @@ export default function RoadmapPage() {
         <div className="space-y-3">
           {activities.map(a => (
             <div key={a.id} className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs text-slate-400 mr-2">{CATEGORY_LABELS[a.category]}</span>
-                  <span className="font-semibold">{a.title}</span>
-                  {a.can_use_as_evidence && <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">증빙가능</span>}
+              {editingActivity === a.id ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input type="text" placeholder="활동명" value={actEdits.title}
+                      onChange={e => setActEdits(p => ({ ...p, title: e.target.value }))}
+                      className="flex-1 font-semibold border rounded px-2 py-1 text-sm" autoFocus />
+                    <select value={a.category}
+                      onChange={e => updateActivity(a.id, { category: e.target.value as ActivityCategory })}
+                      className="border rounded px-2 py-1 text-xs">
+                      {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="기관/학교" value={actEdits.organization}
+                      onChange={e => setActEdits(p => ({ ...p, organization: e.target.value }))}
+                      className="border rounded px-2 py-1 text-sm" />
+                    <input type="text" placeholder="기간" value={actEdits.period}
+                      onChange={e => setActEdits(p => ({ ...p, period: e.target.value }))}
+                      className="border rounded px-2 py-1 text-sm" />
+                  </div>
+                  <input type="text" placeholder="결과" value={actEdits.result}
+                    onChange={e => setActEdits(p => ({ ...p, result: e.target.value }))}
+                    className="w-full border rounded px-2 py-1 text-sm" />
+                  <input type="text" placeholder="서류 활용 목적" value={actEdits.purpose}
+                    onChange={e => setActEdits(p => ({ ...p, purpose: e.target.value }))}
+                    className="w-full border rounded px-2 py-1 text-sm" />
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input type="checkbox" checked={actEdits.can_use_as_evidence}
+                      onChange={e => setActEdits(p => ({ ...p, can_use_as_evidence: e.target.checked }))} />
+                    증빙 자료로 활용 가능
+                  </label>
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={() => saveEditActivity(a.id)} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded">저장</button>
+                    <button onClick={() => setEditingActivity(null)} className="text-xs text-slate-400">취소</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select value={a.status}
-                    onChange={e => updateActivity(a.id, { status: e.target.value as ItemStatus })}
-                    className="text-xs border rounded px-1.5 py-1">
-                    {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                  </select>
-                  <button onClick={() => setConfirmDelete({ type: 'activity', id: a.id })}
-                    className="text-xs text-red-400 hover:text-red-600">삭제</button>
-                </div>
-              </div>
-              <div className="text-sm text-slate-500 mt-1">
-                {a.organization && <span>{a.organization} · </span>}
-                {a.period}
-                {a.result && <span> · {a.result}</span>}
-              </div>
-              {a.purpose && <div className="text-xs text-slate-400 mt-1">목적: {a.purpose}</div>}
+              ) : (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-xs text-slate-400 mr-2">{CATEGORY_LABELS[a.category]}</span>
+                      <span className="font-semibold">{a.title}</span>
+                      {a.can_use_as_evidence && <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">증빙가능</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => startEditActivity(a)} className="text-xs text-slate-400 hover:text-blue-600">✏️ 수정</button>
+                      <select value={a.status}
+                        onChange={e => updateActivity(a.id, { status: e.target.value as ItemStatus })}
+                        className="text-xs border rounded px-1.5 py-1">
+                        {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+                      </select>
+                      <button onClick={() => setConfirmDelete({ type: 'activity', id: a.id })}
+                        className="text-xs text-red-400 hover:text-red-600">삭제</button>
+                    </div>
+                  </div>
+                  <div className="text-sm text-slate-500 mt-1">
+                    {a.organization && <span>{a.organization} · </span>}
+                    {a.period}
+                    {a.result && <span> · {a.result}</span>}
+                  </div>
+                  {a.purpose && <div className="text-xs text-slate-400 mt-1">목적: {a.purpose}</div>}
+                </>
+              )}
 
               <FileAttachment
                 attachments={a.attachments}
