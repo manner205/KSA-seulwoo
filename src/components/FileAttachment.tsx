@@ -75,7 +75,7 @@ export default function FileAttachment({ attachments, onUpdate, totalFileCount }
   }
 
   const handleDownload = (att: Attachment) => {
-    downloadFile(att.storage_path, att.filename)
+    downloadFile(att.storage_path, att.filename).catch(console.error)
   }
 
   return (

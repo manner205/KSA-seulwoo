@@ -33,20 +33,29 @@ export async function saveFile(userId: string, id: string, file: File): Promise<
   return storagePath
 }
 
-/** Public URL로 파일 다운로드 트리거 */
-export function downloadFile(storagePath: string, filename: string): void {
+/** Blob으로 받아 로컬 URL로 다운로드 (크로스 오리진 파일명/iOS 문제 해결) */
+export async function downloadFile(storagePath: string, filename: string): Promise<void> {
   if (!storagePath) {
     alert('파일을 찾을 수 없습니다.\n(이전 버전에서 등록된 파일은 다시 첨부해야 합니다.)')
     return
   }
   const { data } = storageAdmin.storage.from(BUCKET).getPublicUrl(storagePath)
-  const a = document.createElement('a')
-  a.href = data.publicUrl
-  a.download = filename
-  a.target = '_blank'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  try {
+    const res = await fetch(data.publicUrl)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000)
+  } catch (err) {
+    alert('파일 다운로드 중 오류가 발생했습니다.')
+    console.error(err)
+  }
 }
 
 /** Storage에서 파일 삭제 */
